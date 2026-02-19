@@ -1,0 +1,1 @@
+/home/shesha/robot_ws/build/td3/ament_cmake_environment_hooks/local_setup.bash

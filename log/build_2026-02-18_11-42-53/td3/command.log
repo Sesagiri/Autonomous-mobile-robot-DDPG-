@@ -1,0 +1,6 @@
+Invoking command in '/home/shesha/robot_ws/build/td3': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/td3 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/td3
+Invoked command in '/home/shesha/robot_ws/build/td3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/td3 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/td3
+Invoking command in '/home/shesha/robot_ws/build/td3': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/td3 -- -j16 -l16
+Invoked command in '/home/shesha/robot_ws/build/td3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/td3 -- -j16 -l16
+Invoking command in '/home/shesha/robot_ws/build/td3': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/td3
+Invoked command in '/home/shesha/robot_ws/build/td3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/td3

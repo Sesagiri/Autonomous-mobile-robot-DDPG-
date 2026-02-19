@@ -1,0 +1,161 @@
+[0.012s] Invoking command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/velodyne_gazebo_plugins
+[0.068s] -- The C compiler identification is GNU 11.4.0
+[0.130s] -- The CXX compiler identification is GNU 11.4.0
+[0.139s] -- Detecting C compiler ABI info
+[0.214s] -- Detecting C compiler ABI info - done
+[0.221s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.221s] -- Detecting C compile features
+[0.221s] -- Detecting C compile features - done
+[0.225s] -- Detecting CXX compiler ABI info
+[0.313s] -- Detecting CXX compiler ABI info - done
+[0.322s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.323s] -- Detecting CXX compile features
+[0.323s] -- Detecting CXX compile features - done
+[0.326s] -- Found ament_cmake: 1.3.12 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.477s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.562s] -- Found gazebo_dev: 3.9.0 (/opt/ros/humble/share/gazebo_dev/cmake)
+[0.569s] -- Found PkgConfig: /usr/bin/pkg-config (found version "0.29.2") 
+[0.573s] -- Checking for module 'bullet>=2.82'
+[0.587s] --   Found bullet, version 3.05
+[0.716s] -- Found fcl: /usr/include (found suitable version "0.7.0", minimum required is "0.5.0") 
+[0.774s] -- Found assimp: /usr/include (found version "5.2.0") 
+[0.805s] -- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+[1.000s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found suitable version "1.74.0", minimum required is "1.40.0") found components: thread system filesystem program_options regex iostreams date_time 
+[1.022s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so (found version "3.12.4") 
+[1.028s] -- Looking for ignition-math6 -- found version 6.15.1
+[1.038s] -- Searching for dependencies of ignition-math6
+[1.040s] -- Looking for OGRE...
+[1.040s] -- OGRE_PREFIX_WATCH changed.
+[1.046s] -- Checking for module 'OGRE'
+[1.062s] --   Found OGRE, version 1.9.0
+[1.105s] -- Found Ogre Ghadamon (1.9.0)
+[1.117s] -- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+[1.126s] -- Looking for OGRE_Paging...
+[1.130s] -- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+[1.131s] -- Looking for OGRE_Terrain...
+[1.138s] -- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+[1.138s] -- Looking for OGRE_Property...
+[1.143s] -- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+[1.143s] -- Looking for OGRE_RTShaderSystem...
+[1.148s] -- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+[1.148s] -- Looking for OGRE_Volume...
+[1.153s] -- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+[1.154s] -- Looking for OGRE_Overlay...
+[1.159s] -- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+[1.284s] -- Looking for ignition-math6 -- found version 6.15.1
+[1.287s] -- Looking for ignition-transport8 -- found version 8.2.1
+[1.288s] -- Searching for dependencies of ignition-transport8
+[1.306s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so (found suitable version "3.12.4", minimum required is "3") 
+[1.317s] -- Config-file not installed for ZeroMQ -- checking for pkg-config
+[1.322s] -- Checking for module 'libzmq >= 4'
+[1.340s] --   Found libzmq , version 4.3.4
+[1.386s] -- Found ZeroMQ: TRUE (Required is at least version "4") 
+[1.392s] -- Checking for module 'uuid'
+[1.409s] --   Found uuid, version 2.37.2
+[1.452s] -- Found UUID: TRUE  
+[1.455s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.455s] -- Searching for dependencies of ignition-msgs5
+[1.475s] -- Looking for ignition-math6 -- found version 6.15.1
+[1.481s] -- Checking for module 'tinyxml2'
+[1.498s] --   Found tinyxml2, version 9.0.0
+[1.542s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.545s] -- Looking for ignition-common3 -- found version 3.14.0
+[1.545s] -- Searching for dependencies of ignition-common3
+[1.546s] -- Looking for dlfcn.h - found
+[1.547s] -- Looking for libdl - found
+[1.548s] -- Found DL: TRUE  
+[1.560s] -- Found tinyobjloader: /usr/lib/x86_64-linux-gnu/cmake/tinyobjloader/tinyobjloader-config.cmake (found version "2.0.0") 
+[1.561s] -- Searching for <ignition-common3> component [graphics]
+[1.563s] -- Looking for ignition-common3-graphics -- found version 3.14.0
+[1.564s] -- Searching for dependencies of ignition-common3-graphics
+[1.564s] -- Looking for ignition-math6 -- found version 6.15.1
+[1.567s] -- Looking for ignition-fuel_tools4 -- found version 4.4.0
+[1.568s] -- Searching for dependencies of ignition-fuel_tools4
+[1.661s] -- Found CURL: /usr/lib/x86_64-linux-gnu/libcurl.so (found version "7.81.0")  
+[1.672s] -- Checking for module 'jsoncpp'
+[1.688s] --   Found jsoncpp, version 1.9.5
+[1.730s] -- Found JSONCPP: TRUE  
+[1.737s] -- Checking for module 'libzip'
+[1.753s] --   Found libzip, version 1.7.3
+[1.795s] -- Found ZIP: TRUE  
+[1.796s] -- Looking for ignition-common3 -- found version 3.14.0
+[1.796s] -- Looking for ignition-math6 -- found version 6.15.1
+[1.796s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.800s] -- Gazebo version: 11.10
+[1.800s] -- Checking for module 'tbb'
+[1.819s] --   Found tbb, version 2021.5.0
+[1.866s] -- Found gazebo_ros: 3.9.0 (/opt/ros/humble/share/gazebo_ros/cmake)
+[1.924s] -- Found rosidl_generator_c: 3.1.7 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.931s] -- Found rosidl_adapter: 3.1.7 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.943s] -- Found rosidl_generator_cpp: 3.1.7 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.962s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.985s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.048s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[2.052s] -- Found rmw_fastrtps_cpp: 6.2.8 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[2.175s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[2.202s] -- Found FastRTPS: /opt/ros/humble/include  
+[2.247s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[2.258s] -- Found Threads: TRUE  
+[2.319s] -- Found gazebo_msgs: 3.9.0 (/opt/ros/humble/share/gazebo_msgs/cmake)
+[2.378s] -- Found sensor_msgs: 4.9.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+[2.397s] -- Found tf2: 0.25.16 (/opt/ros/humble/share/tf2/cmake)
+[2.480s] -- Configuring done
+[2.513s] -- Generating done
+[2.519s] -- Build files have been written to: /home/shesha/robot_ws/build/velodyne_gazebo_plugins
+[2.536s] Invoked command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/velodyne_gazebo_plugins
+[2.538s] Invoking command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/velodyne_gazebo_plugins -- -j16 -l16
+[2.596s] [ 50%] [32mBuilding CXX object CMakeFiles/gazebo_ros_velodyne_laser.dir/src/GazeboRosVelodyneLaser.cpp.o[0m
+[15.467s] In file included from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/logging.hpp:24[m[K,
+[15.467s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/client.hpp:40[m[K,
+[15.467s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/callback_group.hpp:24[m[K,
+[15.467s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/any_executable.hpp:20[m[K,
+[15.467s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/memory_strategy.hpp:25[m[K,
+[15.467s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/memory_strategies.hpp:18[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/executor_options.hpp:20[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/executor.hpp:37[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/executors/multi_threaded_executor.hpp:25[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/executors.hpp:21[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/rclcpp.hpp:155[m[K,
+[15.468s]                  from [01m[K/opt/ros/humble/include/gazebo_ros/node.hpp:18[m[K,
+[15.468s]                  from [01m[K/home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins/include/velodyne_gazebo_plugins/GazeboRosVelodyneLaser.h:53[m[K,
+[15.468s]                  from [01m[K/home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins/src/GazeboRosVelodyneLaser.cpp:35[m[K:
+[15.468s] [01m[K/home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins/src/GazeboRosVelodyneLaser.cpp:[m[K In member function ‘[01m[Kvirtual void gazebo::GazeboRosVelodyneLaser::Load(gazebo::sensors::SensorPtr, sdf::v9::ElementPtr)[m[K’:
+[15.468s] [01m[K/home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins/src/GazeboRosVelodyneLaser.cpp:295:40:[m[K [01;35m[Kwarning: [m[Kformat ‘[01m[K%s[m[K’ expects a matching ‘[01m[Kchar*[m[K’ argument [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wformat=-Wformat=]8;;[m[K]
+[15.468s]   295 |   RCLCPP_INFO(ros_node_->get_logger(), [01;35m[K"Velodyne %slaser plugin ready"[m[K);
+[15.468s]       |                                        [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[15.468s] [01m[K/home/shesha/robot_ws/src/velodyne_simulator/velodyne_gazebo_plugins/src/GazeboRosVelodyneLaser.cpp:295:51:[m[K [01;36m[Knote: [m[Kformat string is defined here
+[15.468s]   295 |   RCLCPP_INFO(ros_node_->get_logger(), "Velodyne [01;36m[K%s[m[Klaser plugin ready");
+[15.468s]       |                                                  [01;36m[K~^[m[K
+[15.469s]       |                                                   [01;36m[K|[m[K
+[15.469s]       |                                                   [01;36m[Kchar*[m[K
+[20.140s] [100%] [32m[1mLinking CXX shared library libgazebo_ros_velodyne_laser.so[0m
+[21.130s] [100%] Built target gazebo_ros_velodyne_laser
+[21.144s] Invoked command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/velodyne_gazebo_plugins -- -j16 -l16
+[21.146s] Invoking command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/velodyne_gazebo_plugins
+[21.154s] -- Install configuration: ""
+[21.154s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/library_path.sh
+[21.154s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/library_path.dsv
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/ament_index/resource_index/package_run_dependencies/velodyne_gazebo_plugins
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/ament_index/resource_index/parent_prefix_path/velodyne_gazebo_plugins
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/ament_prefix_path.sh
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/ament_prefix_path.dsv
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/path.sh
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/environment/path.dsv
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/local_setup.bash
+[21.155s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/local_setup.sh
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/local_setup.zsh
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/local_setup.dsv
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/package.dsv
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/ament_index/resource_index/packages/velodyne_gazebo_plugins
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/cmake/ament_cmake_export_libraries-extras.cmake
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/cmake/ament_cmake_export_include_directories-extras.cmake
+[21.156s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/cmake/ament_cmake_export_dependencies-extras.cmake
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/cmake/velodyne_gazebo_pluginsConfig.cmake
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/cmake/velodyne_gazebo_pluginsConfig-version.cmake
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/share/velodyne_gazebo_plugins/package.xml
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/include
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/include/velodyne_gazebo_plugins
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/include/velodyne_gazebo_plugins/GazeboRosVelodyneLaser.h
+[21.157s] -- Installing: /home/shesha/robot_ws/install/velodyne_gazebo_plugins/lib/libgazebo_ros_velodyne_laser.so
+[21.161s] -- Set runtime path of "/home/shesha/robot_ws/install/velodyne_gazebo_plugins/lib/libgazebo_ros_velodyne_laser.so" to ""
+[21.163s] Invoked command in '/home/shesha/robot_ws/build/velodyne_gazebo_plugins' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/velodyne_gazebo_plugins
