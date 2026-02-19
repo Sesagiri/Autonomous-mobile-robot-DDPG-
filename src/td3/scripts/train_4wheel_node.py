@@ -29,134 +29,139 @@ from std_srvs.srv import Empty
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 
-GOAL_REACHED_DIST = 0.2
-COLLISION_DIST = 0.25
-TIME_DELTA = 0.2
+# ─────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────
+GOAL_REACHED_DIST = 0.3          # metres (real-world distance from odometry)
+COLLISION_DIST    = 0.25         # metres (real-world; lidar is de-normalised before comparison)
+TIME_DELTA        = 0.2          # seconds per step
 
-# Set the parameters for the implementation
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # cuda or cpu
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-last_odom = None
+last_odom       = None
 environment_dim = 20
-lidar_data = np.ones(environment_dim) * 10
+# Start with all-10 so the "waiting" loop works correctly
+lidar_data = np.ones(environment_dim) * 10.0   # raw metres (NOT normalised globally)
 
+
+# ─────────────────────────────────────────────
+# EVALUATION
+# ─────────────────────────────────────────────
 def evaluate(network, epoch, eval_episodes=10):
     avg_reward = 0.0
     col = 0
-    for _ in range(eval_episodes):
-        env.get_logger().info(f"evaluating episode {_}")
+    for ep in range(eval_episodes):
+        env.get_logger().info(f"Evaluating episode {ep}")
         count = 0
         state = env.reset()
-        done = False
+        done  = False
         while not done and count < 501:
             action = network.get_action(np.array(state))
-            env.get_logger().info(f"action : {action}")
-            a_in = [(action[0] + 1) / 2, action[1]]
+            a_in   = [(action[0] + 1) / 2, action[1]]
             state, reward, done, _ = env.step(a_in)
             avg_reward += reward
-            count += 1
+            count      += 1
             if reward < -90:
                 col += 1
     avg_reward /= eval_episodes
-    avg_col = col / eval_episodes
-    env.get_logger().info("..............................................")
+    avg_col     = col / eval_episodes
+    env.get_logger().info("=" * 50)
     env.get_logger().info(
-        "Average Reward over %i Evaluation Episodes, Epoch %i: avg_reward %f, avg_col %f"
-        % (eval_episodes, epoch, avg_reward, avg_col)
+        f"Eval | Epoch {epoch} | Avg Reward {avg_reward:.3f} | Avg Collisions {avg_col:.3f}"
     )
-    env.get_logger().info("..............................................")
+    env.get_logger().info("=" * 50)
     return avg_reward
 
+
+# ─────────────────────────────────────────────
+# ACTOR
+# ─────────────────────────────────────────────
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor, self).__init__()
-
         self.layer_1 = nn.Linear(state_dim, 800)
         self.layer_2 = nn.Linear(800, 600)
         self.layer_3 = nn.Linear(600, action_dim)
-        self.tanh = nn.Tanh()
+        self.tanh    = nn.Tanh()
 
     def forward(self, s):
         s = F.relu(self.layer_1(s))
         s = F.relu(self.layer_2(s))
-        a = self.tanh(self.layer_3(s))
-        return a
+        return self.tanh(self.layer_3(s))
 
+
+# ─────────────────────────────────────────────
+# CRITIC  (twin Q-networks)
+# ─────────────────────────────────────────────
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
-
-        self.layer_1 = nn.Linear(state_dim, 800)
-        self.layer_2_s = nn.Linear(800, 600)
-        self.layer_2_a = nn.Linear(action_dim, 600)
-        self.layer_3 = nn.Linear(600, 1)
-
-        self.layer_4 = nn.Linear(state_dim, 800)
-        self.layer_5_s = nn.Linear(800, 600)
-        self.layer_5_a = nn.Linear(action_dim, 600)
-        self.layer_6 = nn.Linear(600, 1)
+        # Q1
+        self.layer_1   = nn.Linear(state_dim,  800)
+        self.layer_2_s = nn.Linear(800,         600)
+        self.layer_2_a = nn.Linear(action_dim,  600)
+        self.layer_3   = nn.Linear(600,           1)
+        # Q2
+        self.layer_4   = nn.Linear(state_dim,  800)
+        self.layer_5_s = nn.Linear(800,         600)
+        self.layer_5_a = nn.Linear(action_dim,  600)
+        self.layer_6   = nn.Linear(600,           1)
 
     def forward(self, s, a):
-        s1 = F.relu(self.layer_1(s))
-        self.layer_2_s(s1)
-        self.layer_2_a(a)
+        # Q1
+        s1  = F.relu(self.layer_1(s))
         s11 = torch.mm(s1, self.layer_2_s.weight.data.t())
-        s12 = torch.mm(a, self.layer_2_a.weight.data.t())
-        s1 = F.relu(s11 + s12 + self.layer_2_a.bias.data)
-        q1 = self.layer_3(s1)
-
-        s2 = F.relu(self.layer_4(s))
-        self.layer_5_s(s2)
-        self.layer_5_a(a)
+        s12 = torch.mm(a,  self.layer_2_a.weight.data.t())
+        s1  = F.relu(s11 + s12 + self.layer_2_a.bias.data)
+        q1  = self.layer_3(s1)
+        # Q2
+        s2  = F.relu(self.layer_4(s))
         s21 = torch.mm(s2, self.layer_5_s.weight.data.t())
-        s22 = torch.mm(a, self.layer_5_a.weight.data.t())
-        s2 = F.relu(s21 + s22 + self.layer_5_a.bias.data)
-        q2 = self.layer_6(s2)
+        s22 = torch.mm(a,  self.layer_5_a.weight.data.t())
+        s2  = F.relu(s21 + s22 + self.layer_5_a.bias.data)
+        q2  = self.layer_6(s2)
         return q1, q2
 
-# td3 network
+
+# ─────────────────────────────────────────────
+# TD3 AGENT
+# ─────────────────────────────────────────────
 class td3(object):
     def __init__(self, state_dim, action_dim, max_action):
-        # Initialize the Actor network
-        self.actor = Actor(state_dim, action_dim).to(device)
+        self.actor        = Actor(state_dim, action_dim).to(device)
         self.actor_target = Actor(state_dim, action_dim).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=0.0001)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=1e-4)
 
-        # Initialize the Critic networks
-        self.critic = Critic(state_dim, action_dim).to(device)
+        self.critic        = Critic(state_dim, action_dim).to(device)
         self.critic_target = Critic(state_dim, action_dim).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=0.0003)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=3e-4)
 
-        self.max_action = max_action
-        # Change line 113 to:
-        self.writer = SummaryWriter(log_dir=runs_path)
-        # os.path.dirname(os.path.realpath(__file__)) + "/runs"
-        self.iter_count = 0
+        self.max_action  = max_action
+        self.writer      = SummaryWriter(log_dir=runs_path)
+        self.iter_count  = 0
 
     def get_action(self, state):
-        # Function to get the action from the actor
         state = torch.Tensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
 
-    # training cycle
     def train(
         self,
         replay_buffer,
         iterations,
-        batch_size=100,
-        discount=1,
-        tau=0.005,
-        policy_noise=0.2,  # discount=0.99
-        noise_clip=0.5,
-        policy_freq=2,
+        batch_size  = 100,
+        discount    = 0.99,   # FIX: was 0.99999 (≈1.0) → unstable Q-values
+        tau         = 0.005,
+        policy_noise= 0.2,
+        noise_clip  = 0.5,
+        policy_freq = 2,
     ):
-        av_Q = 0
-        max_Q = -inf
+        av_Q   = 0
+        max_Q  = -inf
         av_loss = 0
+
         for it in range(iterations):
-            # sample a batch from the replay buffer
             (
                 batch_states,
                 batch_actions,
@@ -164,139 +169,97 @@ class td3(object):
                 batch_dones,
                 batch_next_states,
             ) = replay_buffer.sample_batch(batch_size)
-            state = torch.Tensor(batch_states).to(device)
+
+            state      = torch.Tensor(batch_states).to(device)
             next_state = torch.Tensor(batch_next_states).to(device)
-            action = torch.Tensor(batch_actions).to(device)
-            reward = torch.Tensor(batch_rewards).to(device)
-            done = torch.Tensor(batch_dones).to(device)
+            action     = torch.Tensor(batch_actions).to(device)
+            reward     = torch.Tensor(batch_rewards).to(device)
+            done       = torch.Tensor(batch_dones).to(device)
 
-            # Obtain the estimated action from the next state by using the actor-target
+            # Target policy smoothing
             next_action = self.actor_target(next_state)
-
-            # Add noise to the action
-            noise = torch.Tensor(batch_actions).data.normal_(0, policy_noise).to(device)
-            noise = noise.clamp(-noise_clip, noise_clip)
+            noise       = torch.Tensor(batch_actions).data.normal_(0, policy_noise).to(device)
+            noise       = noise.clamp(-noise_clip, noise_clip)
             next_action = (next_action + noise).clamp(-self.max_action, self.max_action)
 
-            # Calculate the Q values from the critic-target network for the next state-action pair
+            # Clipped double Q-learning target
             target_Q1, target_Q2 = self.critic_target(next_state, next_action)
+            target_Q  = torch.min(target_Q1, target_Q2)
+            av_Q     += torch.mean(target_Q)
+            max_Q     = max(max_Q, torch.max(target_Q))
+            target_Q  = reward + ((1 - done) * discount * target_Q).detach()
 
-            # Select the minimal Q value from the 2 calculated values
-            target_Q = torch.min(target_Q1, target_Q2)
-            av_Q += torch.mean(target_Q)
-            max_Q = max(max_Q, torch.max(target_Q))
-            # Calculate the final Q value from the target network parameters by using Bellman equation
-            target_Q = reward + ((1 - done) * discount * target_Q).detach()
-
-            # Get the Q values of the basis networks with the current parameters
             current_Q1, current_Q2 = self.critic(state, action)
-
-            # Calculate the loss between the current Q value and the target Q value
             loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
-            # Perform the gradient descent
             self.critic_optimizer.zero_grad()
             loss.backward()
             self.critic_optimizer.step()
 
+            # Delayed policy update
             if it % policy_freq == 0:
-                # Maximize the actor output value by performing gradient descent on negative Q values
-                # (essentially perform gradient ascent)
                 actor_grad, _ = self.critic(state, self.actor(state))
-                actor_grad = -actor_grad.mean()
+                actor_grad    = -actor_grad.mean()
                 self.actor_optimizer.zero_grad()
                 actor_grad.backward()
                 self.actor_optimizer.step()
 
-                # Use soft update to update the actor-target network parameters by
-                # infusing small amount of current parameters
-                for param, target_param in zip(
-                    self.actor.parameters(), self.actor_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        tau * param.data + (1 - tau) * target_param.data
-                    )
-                # Use soft update to update the critic-target network parameters by infusing
-                # small amount of current parameters
-                for param, target_param in zip(
-                    self.critic.parameters(), self.critic_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        tau * param.data + (1 - tau) * target_param.data
-                    )
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+                for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             av_loss += loss
+
         self.iter_count += 1
-        # Write new values for tensorboard
-        env.get_logger().info(f"writing new results for a tensorboard")
-        env.get_logger().info(f"loss, Av.Q, Max.Q, iterations : {av_loss / iterations}, {av_Q / iterations}, {max_Q}, {self.iter_count}")
-        self.writer.add_scalar("loss", av_loss / iterations, self.iter_count)
-        self.writer.add_scalar("Av. Q", av_Q / iterations, self.iter_count)
-        self.writer.add_scalar("Max. Q", max_Q, self.iter_count)
+        env.get_logger().info(
+            f"Train | Loss: {av_loss/iterations:.4f} | Av.Q: {av_Q/iterations:.4f} | Max.Q: {max_Q:.4f}"
+        )
+        self.writer.add_scalar("loss",   av_loss / iterations, self.iter_count)
+        self.writer.add_scalar("Av. Q",  av_Q    / iterations, self.iter_count)
+        self.writer.add_scalar("Max. Q", max_Q,                self.iter_count)
 
     def save(self, filename, directory):
-        torch.save(self.actor.state_dict(), "%s/%s_actor.pth" % (directory, filename))
-        torch.save(self.critic.state_dict(), "%s/%s_critic.pth" % (directory, filename))
+        torch.save(self.actor.state_dict(),  f"{directory}/{filename}_actor.pth")
+        torch.save(self.critic.state_dict(), f"{directory}/{filename}_critic.pth")
 
     def load(self, filename, directory):
-        self.actor.load_state_dict(
-            torch.load("%s/%s_actor.pth" % (directory, filename))
-        )
-        self.critic.load_state_dict(
-            torch.load("%s/%s_critic.pth" % (directory, filename))
-        )
+        self.actor.load_state_dict( torch.load(f"{directory}/{filename}_actor.pth"))
+        self.critic.load_state_dict(torch.load(f"{directory}/{filename}_critic.pth"))
 
-# Check if the random goal position is located on an obstacle and do not accept it if it is
+
+# ─────────────────────────────────────────────
+# OBSTACLE / BOUNDS CHECK
+# ─────────────────────────────────────────────
 def check_pos(x, y):
-    goal_ok = True
-
-    if -3.8 > x > -6.2 and 6.2 > y > 3.8:
-        goal_ok = False
-
-    if -1.3 > x > -2.7 and 4.7 > y > -0.2:
-        goal_ok = False
-
-    if -0.3 > x > -4.2 and 2.7 > y > 1.3:
-        goal_ok = False
-
-    if -0.8 > x > -4.2 and -2.3 > y > -4.2:
-        goal_ok = False
-
-    if -1.3 > x > -3.7 and -0.8 > y > -2.7:
-        goal_ok = False
-
-    if 4.2 > x > 0.8 and -1.8 > y > -3.2:
-        goal_ok = False
-
-    if 4 > x > 2.5 and 0.7 > y > -3.2:
-        goal_ok = False
-
-    if 6.2 > x > 3.8 and -3.3 > y > -4.2:
-        goal_ok = False
-
-    if 4.2 > x > 1.3 and 3.7 > y > 1.5:
-        goal_ok = False
-
-    if -3.0 > x > -7.2 and 0.5 > y > -1.5:
-        goal_ok = False
-
-    if x > 4.5 or x < -4.5 or y > 4.5 or y < -4.5:
-        goal_ok = False
-
-    return goal_ok
+    """Return True if (x, y) is a valid free position."""
+    if -3.8 > x > -6.2 and 6.2 > y > 3.8:   return False
+    if -1.3 > x > -2.7 and 4.7 > y > -0.2:  return False
+    if -0.3 > x > -4.2 and 2.7 > y > 1.3:   return False
+    if -0.8 > x > -4.2 and -2.3 > y > -4.2: return False
+    if -1.3 > x > -3.7 and -0.8 > y > -2.7: return False
+    if  4.2 > x >  0.8 and -1.8 > y > -3.2: return False
+    if  4.0 > x >  2.5 and  0.7 > y > -3.2: return False
+    if  6.2 > x >  3.8 and -3.3 > y > -4.2: return False
+    if  4.2 > x >  1.3 and  3.7 > y >  1.5: return False
+    if -3.0 > x > -7.2 and  0.5 > y > -1.5: return False
+    if x > 4.5 or x < -4.5 or y > 4.5 or y < -4.5: return False
+    return True
 
 
+# ─────────────────────────────────────────────
+# GAZEBO ENVIRONMENT
+# ─────────────────────────────────────────────
 class GazeboEnv(Node):
-    """Superclass for all Gazebo environments."""
 
     def __init__(self):
         super().__init__('env')
         self.environment_dim = 20
-        self.odom_x = 0
-        self.odom_y = 0
+        self.odom_x = 0.0
+        self.odom_y = 0.0
         self.last_distance = 0.0
 
-        self.goal_x = 1
+        self.goal_x = 1.0
         self.goal_y = 0.0
 
         self.upper = 5.0
@@ -312,66 +275,64 @@ class GazeboEnv(Node):
         self.set_self_state.pose.orientation.z = 0.0
         self.set_self_state.pose.orientation.w = 1.0
 
-        # Set up the ROS publishers and subscribers
-        self.vel_pub = self.create_publisher(Twist, "/cmd_vel", 1)
-        self.set_state = self.create_publisher(ModelState, "gazebo/set_model_state", 10)
+        # Publishers / subscribers / service clients
+        self.vel_pub   = self.create_publisher(Twist,      "/cmd_vel",                 1)
+        self.set_state = self.create_publisher(ModelState, "gazebo/set_model_state",  10)
 
-        self.unpause = self.create_client(Empty, "/unpause_physics")
-        self.pause = self.create_client(Empty, "/pause_physics")
+        self.unpause     = self.create_client(Empty, "/unpause_physics")
+        self.pause       = self.create_client(Empty, "/pause_physics")
         self.reset_proxy = self.create_client(Empty, "/reset_world")
-        self.req = Empty.Request
 
-        self.publisher = self.create_publisher(MarkerArray, "goal_point", 3)
-        self.publisher2 = self.create_publisher(MarkerArray, "linear_velocity", 1)
+        self.publisher  = self.create_publisher(MarkerArray, "goal_point",       3)
+        self.publisher2 = self.create_publisher(MarkerArray, "linear_velocity",  1)
         self.publisher3 = self.create_publisher(MarkerArray, "angular_velocity", 1)
 
-    # Perform an action and read a new state
+    # ── STEP ──────────────────────────────────
     def step(self, action):
-        global lidar_data
-        global last_odom
-        target = False
+        """
+        action : [linear_vel (0-1), angular_vel (-1 to 1)]
+        Returns (state, reward, done, target)
+        """
+        global lidar_data, last_odom
         if last_odom is None:
             return np.zeros(self.environment_dim + 4), 0.0, False, False
 
         target = False
-        
-        # Publish the robot action
-        vel_cmd = Twist()
-        vel_cmd.linear.x = float(action[0])
+
+        # Publish velocity command
+        vel_cmd           = Twist()
+        vel_cmd.linear.x  = float(action[0])
         vel_cmd.angular.z = float(action[1])
         self.vel_pub.publish(vel_cmd)
         self.publish_markers(action)
 
+        # Un-pause physics
         while not self.unpause.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
-
+            self.get_logger().info("Waiting for /unpause_physics ...")
         try:
             self.unpause.call_async(Empty.Request())
-        except:
-            print("/unpause_physics service call failed")
+        except Exception:
+            self.get_logger().warn("/unpause_physics call failed")
 
-        # propagate state for TIME_DELTA seconds
         time.sleep(TIME_DELTA)
 
+        # Pause physics
         while not self.pause.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
-
+            self.get_logger().info("Waiting for /pause_physics ...")
         try:
-            pass
             self.pause.call_async(Empty.Request())
-        except (rclpy.ServiceException) as e:
-            print("/gazebo/pause_physics service call failed")
+        except Exception:
+            self.get_logger().warn("/pause_physics call failed")
 
-        # read laser state
+        # ── READ SENSOR DATA ──────────────────
+        # lidar_data is in RAW METRES (set by Lidar_subscriber)
+        laser_state = [list(lidar_data)]                            # 20 raw-metre readings
         done, collision, min_laser = self.observe_collision(lidar_data)
-        v_state = []
-        v_state[:] = lidar_data[:]
-        laser_state = [v_state]
 
-        # Calculate robot heading from odometry data
+        # Odometry
         self.odom_x = last_odom.pose.pose.position.x
         self.odom_y = last_odom.pose.pose.position.y
-        quaternion = Quaternion(
+        quaternion  = Quaternion(
             last_odom.pose.pose.orientation.w,
             last_odom.pose.pose.orientation.x,
             last_odom.pose.pose.orientation.y,
@@ -380,414 +341,395 @@ class GazeboEnv(Node):
         euler = quaternion.to_euler(degrees=False)
         angle = round(euler[2], 4)
 
-        # Calculate distance to the goal from the robot
-        distance = np.linalg.norm(
-            [self.odom_x - self.goal_x, self.odom_y - self.goal_y]
-        )
-
-        # Calculate the relative angle between the robots heading and heading toward the goal
-        skew_x = self.goal_x - self.odom_x
-        skew_y = self.goal_y - self.odom_y
-        dot = skew_x * 1 + skew_y * 0
-        mag1 = math.sqrt(math.pow(skew_x, 2) + math.pow(skew_y, 2))
-        mag2 = math.sqrt(math.pow(1, 2) + math.pow(0, 2))
-        beta = math.acos(dot / (mag1 * mag2))
+        # Distance & heading to goal
+        distance = np.linalg.norm([self.odom_x - self.goal_x, self.odom_y - self.goal_y])
+        skew_x   = self.goal_x - self.odom_x
+        skew_y   = self.goal_y - self.odom_y
+        dot      = skew_x * 1 + skew_y * 0
+        mag1     = math.sqrt(skew_x ** 2 + skew_y ** 2)
+        beta     = math.acos(dot / (mag1 * 1.0 + 1e-8))
         if skew_y < 0:
-            if skew_x < 0:
-                beta = -beta
-            else:
-                beta = 0 - beta
+            beta = -beta if skew_x < 0 else -beta
         theta = beta - angle
-        if theta > np.pi:
-            theta = np.pi - theta
-            theta = -np.pi - theta
-        if theta < -np.pi:
-            theta = -np.pi - theta
-            theta = np.pi - theta
+        if theta >  np.pi: theta = theta - 2 * np.pi
+        if theta < -np.pi: theta = theta + 2 * np.pi
 
-        # Detect if the goal has been reached and give a large positive reward
+        # Goal check
         if distance < GOAL_REACHED_DIST:
-            env.get_logger().info("GOAL is reached!")
+            self.get_logger().info("GOAL REACHED!")
             target = True
-            done = True
+            done   = True
 
+        # Normalise lidar for the neural network (0–1 range)
+        lidar_norm = lidar_data / 10.0
         robot_state = [distance, theta, action[0], action[1]]
-        state = np.append(laser_state, robot_state)
-# Around line 417 - Ensure this line uses SPACES only
+        state       = np.append(lidar_norm, robot_state)
+
         reward = self.get_reward(target, collision, action, min_laser, theta)
         return state, reward, done, target
 
+    # ── RESET ─────────────────────────────────
     def reset(self):
+        global lidar_data
 
-        # Resets the state of the environment and returns an initial observation.
-        #rospy.wait_for_service("/gazebo/reset_world")
         while not self.reset_proxy.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('reset : service not available, waiting again...')
-
+            self.get_logger().info("Waiting for /reset_world ...")
         try:
             self.reset_proxy.call_async(Empty.Request())
         except rclpy.ServiceException as e:
-            print("/gazebo/reset_simulation service call failed")
+            self.get_logger().warn(f"/reset_world failed: {e}")
 
-        angle = np.random.uniform(-np.pi, np.pi)
+        angle      = np.random.uniform(-np.pi, np.pi)
         quaternion = Quaternion.from_euler(0.0, 0.0, angle)
-        object_state = self.set_self_state
+        obj        = self.set_self_state
 
-        x = 0
-        y = 0
-        position_ok = False
-        while not position_ok:
+        x, y = 0.0, 0.0
+        while not check_pos(x, y):
             x = np.random.uniform(-4.5, 4.5)
             y = np.random.uniform(-4.5, 4.5)
-            position_ok = check_pos(x, y)
-        object_state.pose.position.x = x
-        object_state.pose.position.y = y
-        # object_state.pose.position.z = 0.
-        object_state.pose.orientation.x = quaternion.x
-        object_state.pose.orientation.y = quaternion.y
-        object_state.pose.orientation.z = quaternion.z
-        object_state.pose.orientation.w = quaternion.w
-        self.set_state.publish(object_state)
 
-        self.odom_x = object_state.pose.position.x
-        self.odom_y = object_state.pose.position.y
+        obj.pose.position.x    = x
+        obj.pose.position.y    = y
+        obj.pose.orientation.x = quaternion.x
+        obj.pose.orientation.y = quaternion.y
+        obj.pose.orientation.z = quaternion.z
+        obj.pose.orientation.w = quaternion.w
+        self.set_state.publish(obj)
 
-        # set a random goal in empty space in environment
+        self.odom_x = x
+        self.odom_y = y
+
         self.change_goal()
-        # randomly scatter boxes in the environment
         self.random_box()
         self.publish_markers([0.0, 0.0])
 
+        # Un-pause
         while not self.unpause.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info('service not available, waiting again...')
-
+            self.get_logger().info("Waiting for /unpause_physics ...")
         try:
             self.unpause.call_async(Empty.Request())
-        except:
-            print("/gazebo/unpause_physics service call failed")
+        except Exception:
+            self.get_logger().warn("/unpause_physics call failed")
 
         time.sleep(TIME_DELTA)
 
+        # Pause
         while not self.pause.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().info('service not available, waiting again...')
-
+            self.get_logger().info("Waiting for /pause_physics ...")
         try:
             self.pause.call_async(Empty.Request())
-        except:
-            print("/gazebo/pause_physics service call failed")
+        except Exception:
+            self.get_logger().warn("/pause_physics call failed")
 
-        v_state = []
-        v_state[:] = lidar_data[:]
-        laser_state = [v_state]
+        # Build initial state with normalised lidar
+        lidar_norm = lidar_data / 10.0
 
-        distance = np.linalg.norm(
-            [self.odom_x - self.goal_x, self.odom_y - self.goal_y]
-        )
-
-        skew_x = self.goal_x - self.odom_x
-        skew_y = self.goal_y - self.odom_y
-
-        dot = skew_x * 1 + skew_y * 0
-        mag1 = math.sqrt(math.pow(skew_x, 2) + math.pow(skew_y, 2))
-        mag2 = math.sqrt(math.pow(1, 2) + math.pow(0, 2))
-        beta = math.acos(dot / (mag1 * mag2))
-
+        distance = np.linalg.norm([self.odom_x - self.goal_x, self.odom_y - self.goal_y])
+        skew_x   = self.goal_x - self.odom_x
+        skew_y   = self.goal_y - self.odom_y
+        dot      = skew_x * 1 + skew_y * 0
+        mag1     = math.sqrt(skew_x ** 2 + skew_y ** 2)
+        beta     = math.acos(dot / (mag1 + 1e-8))
         if skew_y < 0:
-            if skew_x < 0:
-                beta = -beta
-            else:
-                beta = 0 - beta
+            beta = -beta
         theta = beta - angle
+        if theta >  np.pi: theta = theta - 2 * np.pi
+        if theta < -np.pi: theta = theta + 2 * np.pi
 
-        if theta > np.pi:
-            theta = np.pi - theta
-            theta = -np.pi - theta
-        if theta < -np.pi:
-            theta = -np.pi - theta
-            theta = np.pi - theta
-            
-        self.last_distance = np.linalg.norm([self.odom_x - self.goal_x, self.odom_y - self.goal_y])
+        self.last_distance = distance
 
         robot_state = [distance, theta, 0.0, 0.0]
-        state = np.append(laser_state, robot_state)
+        state       = np.append(lidar_norm, robot_state)
         return state
 
+    # ── GOAL PLACEMENT ────────────────────────
     def change_goal(self):
-        # Place a new goal and check if its location is not on one of the obstacles
         if self.upper < 10:
             self.upper += 0.004
         if self.lower > -10:
             self.lower -= 0.004
 
         goal_ok = False
-
         while not goal_ok:
-            self.goal_x = self.odom_x + random.uniform(self.upper, self.lower)
-            self.goal_y = self.odom_y + random.uniform(self.upper, self.lower)
-            goal_ok = check_pos(self.goal_x, self.goal_y)
+            # Use absolute random position instead of robot-relative offset
+            # to avoid placing goals outside valid bounds
+            self.goal_x = np.random.uniform(-4.5, 4.5)
+            self.goal_y = np.random.uniform(-4.5, 4.5)
+            goal_ok     = check_pos(self.goal_x, self.goal_y)
+            # Ensure goal is reachable (not too close to robot)
+            if np.linalg.norm([self.goal_x - self.odom_x, self.goal_y - self.odom_y]) < 1.0:
+                goal_ok = False
 
+    # ── BOX RANDOMISATION ─────────────────────
     def random_box(self):
-        # Randomly change the location of the boxes in the environment on each reset to randomize the training
-        # environment
         for i in range(4):
-            name = "cardboard_box_" + str(i)
-
-            x = 0
-            y = 0
+            name   = f"cardboard_box_{i}"
+            x, y   = 0.0, 0.0
             box_ok = False
             while not box_ok:
-                x = np.random.uniform(-6, 6)
-                y = np.random.uniform(-6, 6)
+                x      = np.random.uniform(-6, 6)
+                y      = np.random.uniform(-6, 6)
                 box_ok = check_pos(x, y)
-                distance_to_robot = np.linalg.norm([x - self.odom_x, y - self.odom_y])
-                distance_to_goal = np.linalg.norm([x - self.goal_x, y - self.goal_y])
-                if distance_to_robot < 1.5 or distance_to_goal < 1.5:
-                    box_ok = False
-            box_state = ModelState()
-            box_state.model_name = name
-            box_state.pose.position.x = x
-            box_state.pose.position.y = y
-            box_state.pose.position.z = 0.0
-            box_state.pose.orientation.x = 0.0
-            box_state.pose.orientation.y = 0.0
-            box_state.pose.orientation.z = 0.0
+                if np.linalg.norm([x - self.odom_x,  y - self.odom_y])  < 1.5: box_ok = False
+                if np.linalg.norm([x - self.goal_x,  y - self.goal_y])  < 1.5: box_ok = False
+
+            box_state                   = ModelState()
+            box_state.model_name        = name
+            box_state.pose.position.x   = x
+            box_state.pose.position.y   = y
+            box_state.pose.position.z   = 0.0
             box_state.pose.orientation.w = 1.0
             self.set_state.publish(box_state)
 
+    # ── MARKERS ───────────────────────────────
     def publish_markers(self, action):
-        # Publish visual data in Rviz
-        markerArray = MarkerArray()
+        # Goal marker (green cylinder)
+        ma1    = MarkerArray()
         marker = Marker()
         marker.header.frame_id = "odom"
-        marker.type = marker.CYLINDER
-        marker.action = marker.ADD
-        marker.scale.x = 0.1
-        marker.scale.y = 0.1
-        marker.scale.z = 0.01
-        marker.color.a = 1.0
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
+        marker.type            = Marker.CYLINDER
+        marker.action          = Marker.ADD
+        marker.scale.x         = 0.1
+        marker.scale.y         = 0.1
+        marker.scale.z         = 0.01
+        marker.color.a         = 1.0
+        marker.color.g         = 1.0
         marker.pose.orientation.w = 1.0
         marker.pose.position.x = self.goal_x
         marker.pose.position.y = self.goal_y
-        marker.pose.position.z = 0.0
+        ma1.markers.append(marker)
+        self.publisher.publish(ma1)
 
-        markerArray.markers.append(marker)
-
-        self.publisher.publish(markerArray)
-
-        markerArray2 = MarkerArray()
+        # Linear velocity marker
+        ma2     = MarkerArray()
         marker2 = Marker()
-        marker2.header.frame_id = "odom"
-        marker2.type = marker.CUBE
-        marker2.action = marker.ADD
-        marker2.scale.x = float(abs(action[0]))
-        marker2.scale.y = 0.1
-        marker2.scale.z = 0.01
-        marker2.color.a = 1.0
-        marker2.color.r = 1.0
-        marker2.color.g = 0.0
-        marker2.color.b = 0.0
+        marker2.header.frame_id  = "odom"
+        marker2.type             = Marker.CUBE
+        marker2.action           = Marker.ADD
+        marker2.scale.x          = float(abs(action[0]))
+        marker2.scale.y          = 0.1
+        marker2.scale.z          = 0.01
+        marker2.color.a          = 1.0
+        marker2.color.r          = 1.0
         marker2.pose.orientation.w = 1.0
-        marker2.pose.position.x = 5.0
-        marker2.pose.position.y = 0.0
-        marker2.pose.position.z = 0.0
+        marker2.pose.position.x  = 5.0
+        ma2.markers.append(marker2)
+        self.publisher2.publish(ma2)
 
-        markerArray2.markers.append(marker2)
-        self.publisher2.publish(markerArray2)
-
-        markerArray3 = MarkerArray()
+        # Angular velocity marker
+        ma3     = MarkerArray()
         marker3 = Marker()
-        marker3.header.frame_id = "odom"
-        marker3.type = marker.CUBE
-        marker3.action = marker.ADD
-        marker3.scale.x = float(abs(action[1]))
-        marker3.scale.y = 0.1
-        marker3.scale.z = 0.01
-        marker3.color.a = 1.0
-        marker3.color.r = 1.0
-        marker3.color.g = 0.0
-        marker3.color.b = 0.0
+        marker3.header.frame_id  = "odom"
+        marker3.type             = Marker.CUBE
+        marker3.action           = Marker.ADD
+        marker3.scale.x          = float(abs(action[1]))
+        marker3.scale.y          = 0.1
+        marker3.scale.z          = 0.01
+        marker3.color.a          = 1.0
+        marker3.color.r          = 1.0
         marker3.pose.orientation.w = 1.0
-        marker3.pose.position.x = 5.0
-        marker3.pose.position.y = 0.2
-        marker3.pose.position.z = 0.0
+        marker3.pose.position.x  = 5.0
+        marker3.pose.position.y  = 0.2
+        ma3.markers.append(marker3)
+        self.publisher3.publish(ma3)
 
-        markerArray3.markers.append(marker3)
-        self.publisher3.publish(markerArray3)
-
+    # ── COLLISION DETECTION ───────────────────
     @staticmethod
     def observe_collision(laser_data):
-        # Detect a collision from laser data
-        min_laser = min(laser_data)
+        """
+        laser_data : raw metres (NOT normalised).
+        COLLISION_DIST is also in metres → comparison is correct.
+        """
+        min_laser = float(np.min(laser_data))
         if min_laser < COLLISION_DIST:
-            env.get_logger().info("Collision is detected!")
+            env.get_logger().info(f"COLLISION detected! min_laser={min_laser:.3f}m")
             return True, True, min_laser
         return False, False, min_laser
 
-    
+    # ── REWARD ────────────────────────────────
     def get_reward(self, target, collision, action, min_laser, theta):
+        """
+        min_laser : raw metres.
+        All reward components are in meaningful physical units.
+        """
         if target:
-            self.get_logger().info("Goal Reached: +100")
+            self.get_logger().info("Reward: +100 (Goal Reached)")
             return 100.0
         if collision:
-            self.get_logger().info("Collision: -100")
+            self.get_logger().info("Reward: -100 (Collision)")
             return -100.0
 
-        r_theta = -abs(theta) / np.pi
-        r_v = action[0] / 2.0 
+        # Survival bonus (small, keeps agent alive)
+        r_survival = 0.1
+
+        # Forward speed reward — encourages movement
+        r_v = action[0] * 1.5
+
+        # Heading reward — penalise facing away from goal
+        r_theta = -abs(theta) / np.pi                       # range [-1, 0]
+
+        # Distance-progress reward — most important signal
+        current_dist = np.linalg.norm(
+            [self.odom_x - self.goal_x, self.odom_y - self.goal_y]
+        )
+        r_distance       = (self.last_distance - current_dist) * 10.0  # amplified
+        self.last_distance = current_dist
+
+        # Stagnation penalty — discourages near-zero linear speed
         r_stagnant = -0.5 if action[0] < 0.05 else 0.0
 
-        current_dist = np.linalg.norm([self.odom_x - self.goal_x, self.odom_y - self.goal_y])
-        r_distance = (self.last_distance - current_dist) * 5.0
-        self.last_distance = current_dist 
-
-        r_obstacle = 0.0
+        # Obstacle proximity penalty (min_laser is in real metres)
         if min_laser < 1.0:
-            r_obstacle = -(1.0 - min_laser) / 2.0
+            r_obstacle = -0.5 / (min_laser + 0.1)          # sharper gradient near wall
+        else:
+            r_obstacle = 0.0
 
-        return float(r_theta + r_v + r_stagnant + r_distance + r_obstacle)
+        total = r_survival + r_v + r_theta + r_distance + r_stagnant + r_obstacle
+        return float(total)
 
+
+# ─────────────────────────────────────────────
+# ROS 2 SUBSCRIBER NODES
+# ─────────────────────────────────────────────
 class Odom_subscriber(Node):
-
     def __init__(self):
         super().__init__('odom_subscriber')
-        self.subscription = self.create_subscription(
-            Odometry,
-            '/odom',
-            self.odom_callback,
-            10)
-        self.subscription
+        self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
 
     def odom_callback(self, od_data):
         global last_odom
         last_odom = od_data
 
+
 class Lidar_subscriber(Node):
     def __init__(self):
         super().__init__('lidar_subscriber')
-        self.subscription = self.create_subscription(
-            LaserScan,
-            "/scan",
-            self.lidar_callback,
-            10)
-        self.environment_dim = 20 
+        self.create_subscription(LaserScan, '/scan', self.lidar_callback, 10)
+        self.environment_dim = 20
 
     def lidar_callback(self, msg):
         global lidar_data
-        raw_ranges = np.array(msg.ranges)
-        
-        # 1. Clean data: Replace Inf/NaN with 10.0m
-        raw_ranges[np.isinf(raw_ranges)] = 10.0
-        raw_ranges[np.isnan(raw_ranges)] = 10.0
+        raw = np.array(msg.ranges, dtype=np.float32)
 
-        # 2. CHANGE: Narrow focus to 160 degrees (Front only)
-        # We move the start from 90 to 100 and the end from 270 to 260
-        indices = np.linspace(100, 260, self.environment_dim).astype(int)
-        
-        # 3. Normalization: Scale 0-10m to 0.0-1.0
-        # This is critical for the "Diving Q-Graph" issue we saw
-        lidar_data = raw_ranges[indices] / 10.0 
-        
-        # Log to verify the AI only sees what's in front
-        self.get_logger().info(f"Front Center Dist: {lidar_data[10]*10.0:.2f}m")
-        
+        # 1. Replace Inf / NaN with max range (10 m)
+        raw[np.isinf(raw)] = 10.0
+        raw[np.isnan(raw)] = 10.0
+        raw = np.clip(raw, 0.0, 10.0)
+
+        # 2. Sample 20 evenly-spaced indices from the front 160°
+        #    Index 100-260 spans the front sector of a 360-point scan
+        indices    = np.linspace(100, 260, self.environment_dim, dtype=int)
+        # 3. Store RAW metres — normalisation happens in step() / reset()
+        lidar_data = raw[indices]
+
+        self.get_logger().info(
+            f"LiDAR | Front-centre: {lidar_data[10]:.2f} m | Min: {np.min(lidar_data):.2f} m"
+        )
+
+
+# ─────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────
 if __name__ == '__main__':
 
     rclpy.init(args=None)
 
-    seed = 0  # Random seed number
-    eval_freq = 5e3  # After how many steps to perform the evaluation
-    max_ep = 500  # maximum number of steps per episode
-    eval_ep = 10  # number of episodes for evaluation
-    max_timesteps = 5e6  # Maximum number of steps to perform
-    expl_noise = 1  # Initial exploration noise starting value in range [expl_min ... 1]
-    expl_decay_steps = (
-        500000  # Number of steps over which the initial exploration noise will decay over
-    )
-    expl_min = 0.1  # Exploration noise after the decay in range [0...expl_noise]
-    batch_size = 128   # Size of the mini-batch
-    discount = 0.99999  # Discount factor to calculate the discounted future reward (should be close to 1)
-    tau = 0.005  # Soft target update variable (should be close to 0)
-    policy_noise = 0.2  # Added noise for exploration
-    noise_clip = 0.5  # Maximum clamping values of the noise
-    policy_freq = 2  # Frequency of Actor network updates
-    buffer_size = 1e6  # Maximum size of the buffer
-    file_name = "td3_green_4wheel"  # name of the file to store the policy
-    save_model = True  # Weather to save the model or not
-    load_model = False  # Weather to load a stored model
-    random_near_obstacle = True  # To take random actions near obstacles or not
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    models_path = os.path.join(script_dir, "pytorch_models")
-    results_path = os.path.join(script_dir, "results")
-    runs_path = os.path.join(script_dir, "runs")
-    # Create the network storage folders
-    
-    # Use the variables you defined earlier
-    if not os.path.exists(results_path):
-        os.makedirs(results_path)
-    if save_model and not os.path.exists(models_path):
-        os.makedirs(models_path)
+    # ── Hyper-parameters ──────────────────────
+    seed                = 0
+    eval_freq           = 5_000        # steps between evaluations
+    max_ep              = 500          # max steps per episode
+    eval_ep             = 10           # evaluation episodes
+    max_timesteps       = 5_000_000
+    expl_noise          = 1.0          # initial exploration noise
+    expl_decay_steps    = 50_000
+    expl_min            = 0.1
+    batch_size          = 128
+    discount            = 0.99         # FIX: was 0.99999 → now stable
+    tau                 = 0.005
+    policy_noise        = 0.2
+    noise_clip          = 0.5
+    policy_freq         = 2
+    buffer_size         = 1_000_000
+    file_name           = "td3_green_4wheel"
+    save_model          = True
+    load_model          = False
+    random_near_obstacle= True
 
-    # Create the training environment
+    # ── Paths ─────────────────────────────────
+    script_dir   = os.path.dirname(os.path.realpath(__file__))
+    models_path  = os.path.join(script_dir, "pytorch_models")
+    results_path = os.path.join(script_dir, "results")
+    runs_path    = os.path.join(script_dir, "runs")
+
+    for p in [results_path, runs_path]:
+        os.makedirs(p, exist_ok=True)
+    if save_model:
+        os.makedirs(models_path, exist_ok=True)
+
+    # ── Network setup ─────────────────────────
     environment_dim = 20
-    robot_dim = 4
+    robot_dim       = 4
+    state_dim       = environment_dim + robot_dim
+    action_dim      = 2
+    max_action      = 1
 
     torch.manual_seed(seed)
     np.random.seed(seed)
-    state_dim = environment_dim + robot_dim
-    action_dim = 2
-    max_action = 1
 
-    # Create the network
-    network = td3(state_dim, action_dim, max_action)
-    # Create a replay buffer
+    # Create nodes BEFORE td3 (td3 uses runs_path which is now defined)
+    env              = GazeboEnv()
+    odom_subscriber  = Odom_subscriber()
+    lidar_subscriber = Lidar_subscriber()
+
+    network       = td3(state_dim, action_dim, max_action)
     replay_buffer = ReplayBuffer(buffer_size, seed)
+
     if load_model:
         try:
-            print("Will load existing model.")
-            network.load(file_name, "./pytorch_models")
-        except:
-            print("Could not load the stored model parameters, initializing training with random parameters")
+            network.load(file_name, models_path)
+            print("Loaded existing model.")
+        except Exception as e:
+            print(f"Could not load model ({e}). Starting fresh.")
 
-    # Create evaluation data store
-    evaluations = []
-
-    timestep = 0
-    timesteps_since_eval = 0
-    episode_num = 0
-    done = True
-    epoch = 1
-
-    count_rand_actions = 0
-    random_action = []
-
-    env = GazeboEnv()
-    odom_subscriber = Odom_subscriber()
-    lidar_subscriber = Lidar_subscriber()
-    
+    # ── Executor (multi-threaded for parallel spin) ──
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(odom_subscriber)
     executor.add_node(lidar_subscriber)
-
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
-    
-    rate = odom_subscriber.create_rate(2)
+
+    # ── Wait for first sensor readings ────────
+    env.get_logger().info("Waiting for Gazebo sensors (Odom & LiDAR) ...")
+    while last_odom is None or np.all(lidar_data == 10.0):
+        time.sleep(0.1)
+    env.get_logger().info("Sensors ready. Starting training loop.")
+
+    # ── Training state ────────────────────────
+    evaluations          = []
+    timestep             = 0
+    timesteps_since_eval = 0
+    episode_num          = 0
+    done                 = True
+    epoch                = 1
+    episode_timesteps    = 0
+    episode_reward       = 0.0
+    state                = None
+
+    count_rand_actions = 0
+    random_action      = []
+
     try:
-        env.get_logger().info("Waiting for Gazebo sensors (Odom & Scan)...")
-        while last_odom is None or np.array_equal(lidar_data, np.ones(20) * 10):
-            time.sleep(0.1)       
-    
-        while rclpy.ok():
-            if timestep < max_timesteps:
-                # On termination of episode
-                if done:
-                    env.get_logger().info(f"Done. timestep : {timestep}")
-                    if timestep != 0:
-                        env.get_logger().info(f"train")
-                        network.train(
+        while rclpy.ok() and timestep < max_timesteps:
+
+            # ── Episode boundary ──
+            if done:
+                env.get_logger().info(
+                    f"Episode {episode_num} ended | Steps: {timestep} | "
+                    f"Ep.Reward: {episode_reward:.2f}"
+                )
+
+                if timestep != 0:
+                    network.train(
                         replay_buffer,
                         episode_timesteps,
                         batch_size,
@@ -796,69 +738,71 @@ if __name__ == '__main__':
                         policy_noise,
                         noise_clip,
                         policy_freq,
-                        )
+                    )
 
-                    if timesteps_since_eval >= eval_freq:
-                        env.get_logger().info("Validating")
-                        timesteps_since_eval %= eval_freq
-                        evaluations.append(
-                            evaluate(network=network, epoch=epoch, eval_episodes=eval_ep)
-                        )
-	
-                        network.save(file_name, directory=models_path)
-                        np.save(os.path.join(results_path, file_name), evaluations)
-                        epoch += 1
+                if timesteps_since_eval >= eval_freq:
+                    env.get_logger().info("Running evaluation ...")
+                    timesteps_since_eval %= eval_freq
+                    evaluations.append(evaluate(network, epoch, eval_ep))
+                    network.save(file_name, directory=models_path)
+                    np.save(os.path.join(results_path, file_name), evaluations)
+                    epoch += 1
 
-                    state = env.reset()
-                    done = False
+                state          = env.reset()
+                done           = False
+                episode_reward = 0.0
+                episode_timesteps = 0
+                episode_num   += 1
 
-                    episode_reward = 0
-                    episode_timesteps = 0
-                    episode_num += 1
+            # ── Exploration noise decay ──
+            if expl_noise > expl_min:
+                expl_noise -= (1.0 - expl_min) / expl_decay_steps
 
-                # add some exploration noise
-                if expl_noise > expl_min:
-                    expl_noise = expl_noise - ((1 - expl_min) / expl_decay_steps)
+            # ── Action selection ──
+            action = network.get_action(np.array(state))
+            action = np.clip(
+                action + np.random.normal(0, expl_noise, size=action_dim),
+                -max_action, max_action
+            )
 
-                action = network.get_action(np.array(state))
-                action = (action + np.random.normal(0, expl_noise, size=action_dim)).clip(
-                     -max_action, max_action
-                )
+            # ── Random actions near obstacles ──
+            # FIX: state[0:20] are normalised lidar (0-1); threshold 0.06 ≈ 0.6 m
+            if random_near_obstacle:
+                if (
+                    np.random.uniform(0, 1) > 0.85
+                    and min(state[0:20]) < 0.06          # 0.6 m in normalised units
+                    and count_rand_actions < 1
+                ):
+                    count_rand_actions = np.random.randint(8, 15)
+                    random_action      = np.random.uniform(-1, 1, 2)
 
-                # If the robot is facing an obstacle, randomly force it to take a consistent random action.
-                # This is done to increase exploration in situations near obstacles.
-                # Training can also be performed without it
-                if random_near_obstacle:
-                    if (
-                        np.random.uniform(0, 1) > 0.85
-                        and min(state[4:-8]) < 0.6
-                        and count_rand_actions < 1
-                    ):
-                        count_rand_actions = np.random.randint(8, 15)
-                        random_action = np.random.uniform(-1, 1, 2)
+                if count_rand_actions > 0:
+                    count_rand_actions -= 1
+                    action    = random_action.copy()
+                    action[0] = -1                       # reverse to escape obstacle
 
-                    if count_rand_actions > 0:
-                        count_rand_actions -= 1
-                        action = random_action
-                        action[0] = -1
+            # ── Map action to physical range ──
+            # Linear: [-1,1] → [0,1]   Angular: [-1,1] unchanged
+            a_in = [(action[0] + 1) / 2, action[1]]
 
-                # Update action to fall in range [0,1] for linear velocity and [-1,1] for angular velocity
-                a_in = [(action[0] + 1) / 2, action[1]]
-                next_state, reward, done, target = env.step(a_in)
-                done_bool = 0 if episode_timesteps + 1 == max_ep else int(done)
-                done = 1 if episode_timesteps + 1 == max_ep else int(done)
-                episode_reward += reward
+            next_state, reward, done, target = env.step(a_in)
 
-                # Save the tuple in replay buffer
-                replay_buffer.add(state, action, reward, done_bool, next_state)
+            # Terminal flag for Bellman: don't bootstrap at true terminal states
+            done_bool = 0 if episode_timesteps + 1 == max_ep else int(done)
+            done      = 1 if episode_timesteps + 1 == max_ep else int(done)
 
-                # Update the counters
-                state = next_state
-                episode_timesteps += 1
-                timestep += 1
-                timesteps_since_eval += 1
+            episode_reward += reward
+            replay_buffer.add(state, action, reward, done_bool, next_state)
+
+            state              = next_state
+            episode_timesteps += 1
+            timestep          += 1
+            timesteps_since_eval += 1
 
     except KeyboardInterrupt:
-        pass
+        env.get_logger().info("Training interrupted by user.")
 
-    rclpy.shutdown()
+    finally:
+        if save_model:
+            network.save(file_name, directory=models_path)
+        rclpy.shutdown()

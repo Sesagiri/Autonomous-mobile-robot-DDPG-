@@ -1,6 +1,0 @@
-Invoking command in '/home/shesha/robot_ws/build/velodyne_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/velodyne_simulator/velodyne_description -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/velodyne_description
-Invoked command in '/home/shesha/robot_ws/build/velodyne_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/shesha/robot_ws/src/velodyne_simulator/velodyne_description -DCMAKE_INSTALL_PREFIX=/home/shesha/robot_ws/install/velodyne_description
-Invoking command in '/home/shesha/robot_ws/build/velodyne_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/velodyne_description -- -j16 -l16
-Invoked command in '/home/shesha/robot_ws/build/velodyne_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --build /home/shesha/robot_ws/build/velodyne_description -- -j16 -l16
-Invoking command in '/home/shesha/robot_ws/build/velodyne_description': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/velodyne_description
-Invoked command in '/home/shesha/robot_ws/build/velodyne_description' returned '0': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake --install /home/shesha/robot_ws/build/velodyne_description

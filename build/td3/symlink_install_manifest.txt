@@ -112,6 +112,13 @@
 /home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771408725.sesa-ubntu.27135.0
 /home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771409591.sesa-ubntu.28175.0
 /home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771409643.sesa-ubntu.28530.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771476254.sesa-ubntu.55762.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771476388.sesa-ubntu.56511.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771476510.sesa-ubntu.57219.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771476820.sesa-ubntu.58660.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771483353.sesa-ubntu.61484.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771483372.sesa-ubntu.61647.0
+/home/shesha/robot_ws/install/td3/share/td3//scripts/runs/events.out.tfevents.1771483445.sesa-ubntu.62060.0
 /home/shesha/robot_ws/install/td3/share/td3//scripts/test_4wheel_node.py
 /home/shesha/robot_ws/install/td3/share/td3//scripts/train_4wheel_node.py
 /home/shesha/robot_ws/install/td3/share/td3//urdf/meshes/laser/hokuyo.dae
